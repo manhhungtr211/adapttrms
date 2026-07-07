@@ -1,0 +1,13 @@
+# Ignore sample outputs
+data_samples/output-read-compre/
+
+# Ignore large data/models
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# Ignore cache/output dirs
+output/
+res/
+cache/

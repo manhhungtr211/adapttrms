@@ -1,0 +1,52 @@
+# ────────────────────────────────────────────────────────────────────
+# Training configuration for TinyRecursiveModel SFT
+# ────────────────────────────────────────────────────────────────────
+
+# Model identity
+model_name: tiny_recursive          # used as model_type in get_custom_model
+tokenizer_name: gpt2                # GPT-2 tokenizer for all TRM experiments
+vocab_size: 50000                   # GPT-2 vocabulary size (must match tokenizer)
+
+# Tasks to train on (join multiple with '+', e.g. "NER+FPB+FiQA_SA")
+task_name: NER                      # start with NER only to fix root cause 1
+train_split: train                  # try 'train'; falls back to 'test' if unavailable
+
+# ── Sequence lengths ─────────────────────────────────────────────────
+max_length: 1024        # max total tokens per example (prompt + answer)
+generate_max_len: 128   # tokens reserved for answer during tokenization
+
+# ── Model architecture ───────────────────────────────────────────────
+dim: 256                # hidden dimension (small model for fast iteration)
+n_heads: 4              # attention heads
+n_layers: 2             # TRM base layers (effective depth = 2×n_layers = 4)
+n_latent_recursions: 3  # latent z improvement iterations per forward pass
+n_improvement_cycles: 2 # deep supervision outer cycles
+dropout: 0.1
+adapter_dropout: 0.0
+use_task_adapter: true
+use_checkpoint: false   # gradient checkpointing (enable if OOM)
+use_less_is_more: false
+
+# ── Training hyper-parameters ────────────────────────────────────────
+num_epochs: 10
+batch_size: 4           # increase if GPU memory allows (e.g. 8 or 16)
+learning_rate: 3.0e-4
+weight_decay: 0.01
+grad_clip: 1.0
+warmup_steps: 100       # linear warmup before cosine decay
+n_supervision_steps: 2  # deep supervision steps per batch
+
+# ── Infrastructure ───────────────────────────────────────────────────
+mixed_precision: "fp16"  # "no" | "fp16" | "bf16"
+num_workers: 0           # DataLoader workers (0 = main process, safe on Windows)
+
+# ── Paths ────────────────────────────────────────────────────────────
+output_dir: ./checkpoints/NER_sft_v1   # where checkpoints are saved
+cache_dir: /tmp/cache                   # HuggingFace dataset/model cache
+resume_checkpoint: null                 # set to a .pt path to resume
+
+# ── Logging ──────────────────────────────────────────────────────────
+log_every: 10     # log every N optimizer steps
+save_every: 200   # save a checkpoint every N optimizer steps
+
+add_bos_token: false
