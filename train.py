@@ -57,14 +57,16 @@ def compute_loss(model, batch, vocab_size: int, n_supervision_steps: int = 2) ->
     only on non-ignored label positions (answer tokens).
 
     The TinyRecursiveModel.forward() signature expects `targets` for training.
+    Labels from TrainDatasetReader are already shifted (labels[t] = input[t+1]),
+    so the model's internal shift in forward() aligns correctly.
     """
     input_ids = batch["input_ids"]
     attention_mask = batch["attention_mask"]
     labels = batch["labels"]
 
-    # Clamp labels to valid range (keep -100 ignore tokens)
-    valid_mask = labels != -100
+    # Clamp only VALID label positions to vocab range; preserve -100 ignore tokens.
     labels_clamped = labels.clone()
+    valid_mask = labels_clamped != -100
     labels_clamped[valid_mask] = labels_clamped[valid_mask].clamp(0, vocab_size - 1)
 
     loss = model(

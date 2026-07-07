@@ -611,22 +611,30 @@ class TinyRecursiveModel(nn.Module):
             y, z = self.deep_recursion(x, y, z, use_grad=False, num_emb=num_emb)
             return SimpleNamespace(logits=self.output_head(y))
 
-        targets = targets[:, :T].clamp(0, self.vocab_size - 1)
+        # Preserve ignore_index=-100 when clamping to valid vocab range
+        targets = targets[:, :T]
+        valid_pos = targets != -100
+        targets[valid_pos] = targets[valid_pos].clamp(0, self.vocab_size - 1)
 
         total_loss = 0.0
         for step in range(n_supervision_steps):
             y, z, logits, halt_logit = self.deep_recursion(x, y, z, use_grad=True, num_emb=num_emb)
 
+            # Causal LM shift: logits[t] predicts targets[t+1]
+            # shift_logits: [B, T-1, vocab], shift_targets: [B, T-1]
+            shift_logits = logits[:, :-1, :].contiguous()
+            shift_targets = targets[:, 1:].contiguous()
+
             ce_loss = F.cross_entropy(
-                logits.view(-1, self.vocab_size),
-                targets.reshape(-1),
+                shift_logits.view(-1, self.vocab_size),
+                shift_targets.reshape(-1),
                 ignore_index=-100
             )
 
             with torch.no_grad():
-                preds = logits.argmax(dim=-1)
-                mask = (targets != -100)
-                correct = ((preds == targets) & mask).float().sum() / mask.float().sum().clamp(min=1)
+                preds = shift_logits.argmax(dim=-1)
+                mask = (shift_targets != -100)
+                correct = ((preds == shift_targets) & mask).float().sum() / mask.float().sum().clamp(min=1)
             halt_loss = F.binary_cross_entropy_with_logits(
                 halt_logit.squeeze(-1),
                 correct.expand(B)

@@ -170,10 +170,14 @@ class TrainDatasetReader(Dataset):
 
         input_ids = torch.tensor(qa_ids, dtype=torch.long)
 
-        # Labels: ignore question tokens, supervise only on answer
+        # Labels: ignore question tokens, supervise only on answer.
+        # Shift left by 1 for causal LM: labels[t] = token to predict at step t = input[t+1].
         labels = input_ids.clone()
         q_len = min(len(q_ids), len(qa_ids))
         labels[:q_len] = self.ignore_index  # mask question part
+
+        # Causal LM shift: labels[t] should be input[t+1]
+        labels = torch.cat([labels[1:], torch.tensor([self.ignore_index], dtype=torch.long)])
 
         # Shift labels for causal LM: predict next token
         # We keep labels aligned with input_ids; loss fn will handle the shift.
@@ -213,9 +217,14 @@ class TrainDatasetReader(Dataset):
         qa_ids = qa_ids[: self.max_length]
 
         input_ids = torch.tensor(qa_ids, dtype=torch.long)
+        # Labels: ignore question tokens, supervise only on answer.
+        # Shift left by 1 for causal LM: labels[t] = token to predict at step t = input[t+1].
         labels = input_ids.clone()
         q_len = min(len(q_ids), len(qa_ids))
         labels[:q_len] = self.ignore_index
+
+        # Causal LM shift
+        labels = torch.cat([labels[1:], torch.tensor([self.ignore_index], dtype=torch.long)])
 
         return {
             "input_ids": input_ids,
