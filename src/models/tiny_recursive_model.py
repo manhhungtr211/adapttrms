@@ -598,6 +598,7 @@ class TinyRecursiveModel(nn.Module):
 
         num_emb = None
         if numerical_values is not None:
+            numerical_values = numerical_values.to(dtype=x.dtype, device=x.device)
             num_emb = self.num_projector(numerical_values[:, :T])
             if numerical_mask is not None:
                 numerical_mask = numerical_mask[:, :T].unsqueeze(-1).to(dtype=num_emb.dtype, device=num_emb.device)
